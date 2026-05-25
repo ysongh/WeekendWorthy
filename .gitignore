@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+
+distill-input.txt
+distill-raw.txt
+problems.json
+senso-ledger.json
+senso-draft.md
+senso-draft-raw.json
