@@ -17,7 +17,8 @@ Node 20+, ESM, TypeScript. Package manager: pnpm.
 
 - [src/index.ts](src/index.ts) — orchestrator + `HACKATHON` config at top (edit themes/sponsors here); prints scored JSON to stdout
 - [src/queryBuilder.ts](src/queryBuilder.ts) — `buildQueries(HACKATHON) → {query, focus}[]`
-- [src/nimbleClient.ts](src/nimbleClient.ts) — `search()`; handles 402/429, inter-call delay
+- [src/nimbleClient.ts](src/nimbleClient.ts) — `search()`; handles 402/429, inter-call delay, cache lookup/write
+- [src/cache.ts](src/cache.ts) — disk cache for Nimble responses (`.cache/nimble/<key>.json`)
 - [src/distillAgent.ts](src/distillAgent.ts) — sends scraped content to Claude, returns `Problem[]`
 - [src/types.ts](src/types.ts) — shared types (`Problem`, `SearchResult`, etc.)
 
@@ -40,6 +41,13 @@ JSON array sorted desc by score sum:
 - Nimble: 83 QPS default; `deep` depth is the most expensive — keep `DEV_LIMIT=2` while iterating.
 - Anthropic: one Opus call per run with all scraped content concatenated.
 - Add ~250ms delay between Nimble calls; per-query try/catch so one failure doesn't kill the run.
+
+## Caching
+
+- Nimble responses cached to `.cache/nimble/<key>.json` by `sha256(query|depth|maxResults)[:16]`.
+- TTL: 7 days (`NIMBLE_CACHE_TTL_DAYS`). Bypass with `NIMBLE_CACHE=off`. Bust with `rm -rf .cache`.
+- Cache hits skip the inter-call rate-limit delay.
+- Distill output is intentionally **not** cached — it's the part being iterated on.
 
 ## Conventions
 

@@ -1,4 +1,5 @@
 import type { ScrapedResult } from "./types.js";
+import { cacheKey, getCached, setCached } from "./cache.js";
 
 const BASE_URL = "https://sdk.nimbleway.com/v1";
 
@@ -30,7 +31,14 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function nimbleSearch(
   query: string,
   opts: NimbleOptions,
-): Promise<ScrapedResult[]> {
+): Promise<{ results: ScrapedResult[]; fromCache: boolean }> {
+  const depth = opts.searchDepth ?? "deep";
+  const maxResults = opts.maxResults ?? 5;
+  const key = cacheKey(query, depth, maxResults);
+
+  const cached = await getCached(key);
+  if (cached) return { results: cached, fromCache: true };
+
   const res = await fetch(`${BASE_URL}/search`, {
     method: "POST",
     headers: {
@@ -39,8 +47,8 @@ export async function nimbleSearch(
     },
     body: JSON.stringify({
       query,
-      max_results: opts.maxResults ?? 5,
-      search_depth: opts.searchDepth ?? "deep",
+      max_results: maxResults,
+      search_depth: depth,
       output_format: "markdown",
     }),
   });
@@ -59,7 +67,7 @@ export async function nimbleSearch(
   const json = (await res.json()) as NimbleResponse;
   const results = json.results ?? [];
 
-  return results
+  const scraped: ScrapedResult[] = results
     .filter((r) => r.url && (r.content || r.description))
     .map((r) => ({
       url: r.url!,
@@ -67,6 +75,9 @@ export async function nimbleSearch(
       content: (r.content || r.description || "").slice(0, 8000),
       query,
     }));
+
+  await setCached(key, query, depth, maxResults, scraped);
+  return { results: scraped, fromCache: false };
 }
 
 /** Run many queries sequentially, tolerating per-query failures. */
@@ -79,10 +90,13 @@ export async function nimbleSearchAll(
   const delay = opts.delayMs ?? 150;
 
   for (const q of queries) {
+    let hit = false;
     try {
       const r = await nimbleSearch(q, opts);
-      results.push(...r);
-      process.stderr.write(`  [ok] ${r.length} results — ${q}\n`);
+      hit = r.fromCache;
+      results.push(...r.results);
+      const tag = hit ? "cache" : "ok";
+      process.stderr.write(`  [${tag}] ${r.results.length} results — ${q}\n`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       failures.push({ query: q, error: msg });
@@ -90,7 +104,8 @@ export async function nimbleSearchAll(
       // If we hit a hard budget error, stop early.
       if (msg.includes("402")) break;
     }
-    if (delay > 0) await sleep(delay);
+    // Skip rate-limit delay when previous call didn't actually hit Nimble.
+    if (!hit && delay > 0) await sleep(delay);
   }
 
   return { results, failures };

@@ -53,6 +53,15 @@ pnpm find > problems.json
 | `NIMBLE_API_KEY` | yes | Bearer token for Nimble Search SDK |
 | `ANTHROPIC_API_KEY` | yes | Used as `x-api-key` against Anthropic Messages API |
 | `DEV_LIMIT` | no | Cap number of search queries (e.g. `3`) for cheap iteration |
+| `NIMBLE_CACHE` | no | Set to `off` to bypass the scrape cache and force live fetches |
+| `NIMBLE_CACHE_TTL_DAYS` | no | Cache TTL in days (default `7`) |
+
+## Caching
+
+Nimble responses are cached per `(query, depth, max_results)` under `.cache/nimble/`.
+Re-runs while you tweak the distill prompt cost $0 on Nimble. Bust with
+`rm -rf .cache`. Distill output is intentionally not cached — that's the part
+you're iterating on.
 
 ## Cost per run (rough)
 
