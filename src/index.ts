@@ -53,7 +53,7 @@ async function main() {
     {
       apiKey: nimbleKey,
       maxResults: 5,
-      searchDepth: "lite",
+      searchDepth: "deep",
       delayMs: 150,
     },
   );
