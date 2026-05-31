@@ -2,6 +2,7 @@ import type { Hackathon } from "./types.js";
 import { buildQueries, limitQueries } from "./queryBuilder.js";
 import { nimbleSearchAll } from "./nimbleClient.js";
 import { distill } from "./distillAgent.js";
+import { renderMarkdown } from "./report.js";
 
 // ---- Edit me ---------------------------------------------------------------
 const HACKATHON: Hackathon = {
@@ -45,6 +46,14 @@ async function main() {
 
   const devLimit = process.env.DEV_LIMIT ? Number(process.env.DEV_LIMIT) : undefined;
 
+  // Output format: --format md|json (or OUTPUT_FORMAT env). Defaults to json.
+  const argv = process.argv.slice(2);
+  const fmtArg = argv.find((a) => a.startsWith("--format="))?.split("=")[1]
+    ?? (argv.includes("--format") ? argv[argv.indexOf("--format") + 1] : undefined)
+    ?? (argv.includes("--md") ? "md" : undefined)
+    ?? process.env.OUTPUT_FORMAT;
+  const format = fmtArg === "md" || fmtArg === "markdown" ? "md" : "json";
+
   const queries = limitQueries(buildQueries(HACKATHON), devLimit);
   process.stderr.write(`[1/3] ${queries.length} queries built${devLimit ? ` (DEV_LIMIT=${devLimit})` : ""}\n`);
 
@@ -63,7 +72,7 @@ async function main() {
 
   if (results.length === 0) {
     process.stderr.write("No results to distill — exiting.\n");
-    console.log("[]");
+    console.log(format === "md" ? renderMarkdown(HACKATHON, []) : "[]");
     return;
   }
 
@@ -71,7 +80,11 @@ async function main() {
   const problems = await distill(HACKATHON, results, anthropicKey);
   process.stderr.write(`Done — ${problems.length} problems passed the bar.\n`);
 
-  console.log(JSON.stringify(problems, null, 2));
+  console.log(
+    format === "md"
+      ? renderMarkdown(HACKATHON, problems)
+      : JSON.stringify(problems, null, 2),
+  );
 }
 
 main().catch((e) => {

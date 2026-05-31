@@ -7,15 +7,19 @@ CLI that finds buildable hackathon problems by web-scraping (Nimble) and distill
 ```
 pnpm install
 # .env: NIMBLE_API_KEY, ANTHROPIC_API_KEY
-pnpm find         # full run
+pnpm find         # full run (JSON to stdout)
 pnpm find:dev     # DEV_LIMIT=2, cheap dev run
+pnpm find:md      # full run, Markdown report to stdout
 ```
+
+Output format defaults to JSON. Pass `--format md` (alias `--md`) or set `OUTPUT_FORMAT=md` for a Markdown report (ranked summary table + one detail section per problem). Redirect to a file: `pnpm find:md > report.md`.
 
 Node 20+, ESM, TypeScript. Package manager: pnpm.
 
 ## Layout
 
-- [src/index.ts](src/index.ts) — orchestrator + `HACKATHON` config at top (edit themes/sponsors here); prints scored JSON to stdout
+- [src/index.ts](src/index.ts) — orchestrator + `HACKATHON` config at top (edit themes/sponsors here); prints scored JSON or Markdown to stdout
+- [src/report.ts](src/report.ts) — `renderMarkdown(HACKATHON, problems)` → Markdown report string
 - [src/queryBuilder.ts](src/queryBuilder.ts) — `buildQueries(HACKATHON) → {query, focus}[]`
 - [src/nimbleClient.ts](src/nimbleClient.ts) — `search()`; handles 402/429, inter-call delay, cache lookup/write
 - [src/cache.ts](src/cache.ts) — disk cache for Nimble responses (`.cache/nimble/<key>.json`)
